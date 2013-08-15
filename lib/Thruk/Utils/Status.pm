@@ -1708,13 +1708,22 @@ sub set_audio_file {
         }
 
         my $worst_service = 0;
+        my $state = 0;
+        my $check = 0;
         for my $s (@{$c->stash->{'services'}}) {
             next if $s->{'scheduled_downtime_depth'} >= 1;
             next if $s->{'acknowledged'} == 1;
             next if $s->{'notifications_enabled'} == 0;
-            my $state = $s->{'state'} + 1;
-            $state = $state - 3 if $state == 4;
-            $worst_service = $state if $worst_host < $state;
+            $state = $s->{'state'};
+            $check = $state if ( $state == 2 or $state == 1 ) and $check < $state; # Check for crit and warn
+            $worst_service = $state if $worst_service < $state;
+        }
+
+        if( $check == 1 and $worst_service == 3 ) {
+            $worst_service = 1;
+        }
+        if( $check == 2 and $worst_service == 3 ) {
+            $worst_service = 2;
         }
         if($worst_service == 1 and defined $c->config->{'cgi_cfg'}->{'service_warning_sound'}) {
             $c->stash->{'audiofile'} = $c->config->{'cgi_cfg'}->{'service_warning_sound'};
